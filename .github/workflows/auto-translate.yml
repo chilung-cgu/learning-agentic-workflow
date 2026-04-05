@@ -61,6 +61,7 @@ jobs:
             --model gpt-5.4-mini \
             --experimental \
             --allow-all \
+            --allow-all-paths \
             --no-ask-user \
             -p '你只能讀寫 README.md，並且只能參考 upstream.README.md。請將 upstream.README.md 的完整內容精準翻譯為繁體中文(zh-TW)後覆寫 README.md。嚴格保持所有 Markdown 格式、超連結、程式碼區塊等不變。非必要不添加任何額外說明文字。禁止操作其他任何檔案。'
 
@@ -78,6 +79,7 @@ jobs:
             --model gpt-5.4-mini \
             --experimental \
             --allow-all \
+            --allow-all-paths \
             --no-ask-user \
             -p '你只能讀寫 new_changelog_blocks.md 這一個檔案。請將此 Markdown 檔案中所有文字內容精準翻譯為繁體中文(zh-TW)，直接覆寫 new_changelog_blocks.md。嚴格保持所有 Markdown 格式（標題、列表、程式碼區塊、URL）原樣不動，只翻譯英文文字部分。禁止操作任何其他檔案。'
 
@@ -94,14 +96,20 @@ jobs:
 
           # CHANGELOG：如果有新版本翻譯，Prepend 到目前的 changelog 前方
           if [ "$TRANSLATE_CHANGELOG" = "true" ] && [ -f repos/translate-work/new_changelog_blocks.md ]; then
-            # 新翻好的區塊 + 換行 + 舊的 changelog = 合併後的新 changelog
-            {
-              cat repos/translate-work/new_changelog_blocks.md
-              echo ""
-              echo "---"
-              echo ""
-              cat repos/current/changelog.md
-            } > /tmp/merged_changelog.md
+            if [ -f repos/current/changelog.md ]; then
+              # 已有舊的 changelog：新翻好的區塊 prepend 到前方
+              {
+                cat repos/translate-work/new_changelog_blocks.md
+                echo ""
+                echo "---"
+                echo ""
+                cat repos/current/changelog.md
+              } > /tmp/merged_changelog.md
+            else
+              # 第一次執行，沒有舊的 changelog，直接使用翻譯結果
+              echo "[INFO] repos/current/changelog.md 不存在，第一次建立。"
+              cp repos/translate-work/new_changelog_blocks.md /tmp/merged_changelog.md
+            fi
             mv /tmp/merged_changelog.md repos/current/changelog.md
             echo "changelog.md 已更新（新增 $NEW_BLOCK_COUNT 個版本區塊）。"
           fi
@@ -119,6 +127,8 @@ jobs:
             echo "沒有偵測到任何變更，跳過 Commit。"
           else
             git commit -m "chore: [Agent] update zh-TW translations via GitHub Copilot CLI (gpt-5.4-mini)"
+            # pull --rebase 以防 main 上有其他 commit（例如其他 action 剛推過）
+            git pull --rebase origin HEAD
             git push origin HEAD
             echo "Push 完成！"
           fi
