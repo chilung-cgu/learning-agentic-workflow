@@ -1,9 +1,9 @@
-name: Agentic Translation Workflow
+name: Copilot CLI Agentic Translation Workflow
 
 on:
   schedule:
-    - cron: '0 0 * * *' # 每天凌晨 (UTC時間) 自動執行一次
-  workflow_dispatch: # 允許在 GitHub 網頁上以手動點擊按鈕的方式觸發
+    - cron: '0 0 * * *' # 每天凌晨自動執行
+  workflow_dispatch: # 允許在 GitHub 網頁上手動點擊執行
 
 permissions:
   contents: write
@@ -17,38 +17,46 @@ jobs:
           mkdir -p repos
           git clone --depth 1 "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" repos/current
 
-      - name: 2. Clone 目標上游 (假想敵專案)
+      - name: 2. Clone 目標上游 (github/copilot-cli)
         run: |
-          # 這裡我們挑選 Github 官方最簡單的新手指南專案 `octocat/Hello-World` 來作為假想敵
-          git clone --depth 1 "https://github.com/octocat/Hello-World.git" repos/upstream
+          git clone --depth 1 "https://github.com/github/copilot-cli.git" repos/upstream
 
-      - name: 3. 安裝 Python 環境與 Google Gemini SDK
-        uses: actions/setup-python@v4
+      - name: 3. 準備最小翻譯工作區
+        run: |
+          mkdir -p repos/translate-work
+          cp repos/current/README.md repos/translate-work/README.md || touch repos/translate-work/README.md
+          cp repos/upstream/README.md repos/translate-work/upstream.README.md
+
+      - name: 4. Set up Node.js
+        uses: actions/setup-node@v4
         with:
-          python-version: '3.12'
-      - name: Install dependencies
-        run: pip install google-genai
+          node-version: '22'
 
-      - name: 4. 執行 Agent 進行翻譯
-        # 將存放在 Settings > Secrets 裡面的 API Key 注入為環境變數
+      - name: 5. 安裝 GitHub Copilot CLI Agent
+        run: npm install -g @github/copilot
+
+      - name: 6. 執行 Copilot CLI Agent 進行自動翻譯
         env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          # 取代舊的 OpenAI 或 Gemini Key，這裡必須是勾選了 "Copilot Requests" 權限的 GitHub PAT
+          GH_TOKEN: ${{ secrets.COPILOT_PAT_SECRET }}
         run: |
-          python repos/current/translate-agent.py
+          cd repos/translate-work
+          # 啟動無人值守 (--allow-all) 實驗模式 (--experimental) 進行翻譯
+          copilot --experimental --allow-all '你只能讀寫目前的 README.md，並且只能參考 upstream.README.md。請將 upstream.README.md 的內容全文精準翻譯為繁體中文(zh-TW)後覆寫 README.md。請務必保持 Markdown 結構、超連結與程式碼區塊不變。絕對不要搜尋或操作目錄下的其他檔案。'
 
-      - name: 5. 驗證與提交 (Push)
+      - name: 7. 拷貝結果並驗證與提交 (Push)
         run: |
+          cp repos/translate-work/README.md repos/current/README.md
           cd repos/current
-          # 設定一個機器人身份
+          
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           
           git add README.md
           
-          # 使用 git diff 檢查檔案到底有沒有改變
           if git diff --staged --quiet; then
             echo "沒有偵測到新的變更，不需要 Commit。"
           else
-            git commit -m "chore: [Agent] auto-translate upstream README.md to zh-TW"
+            git commit -m "chore: [Agent] update translation via GitHub Copilot CLI"
             git push origin HEAD
           fi
