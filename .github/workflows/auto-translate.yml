@@ -1,0 +1,54 @@
+name: Agentic Translation Workflow
+
+on:
+  schedule:
+    - cron: '0 0 * * *' # 每天凌晨 (UTC時間) 自動執行一次
+  workflow_dispatch: # 允許在 GitHub 網頁上以手動點擊按鈕的方式觸發
+
+permissions:
+  contents: write
+
+jobs:
+  agentic-translate-job:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 1. Clone 本地程式碼 (學習專案)
+        run: |
+          mkdir -p repos
+          git clone --depth 1 "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" repos/current
+
+      - name: 2. Clone 目標上游 (假想敵專案)
+        run: |
+          # 這裡我們挑選 Github 官方最簡單的新手指南專案 `octocat/Hello-World` 來作為假想敵
+          git clone --depth 1 "https://github.com/octocat/Hello-World.git" repos/upstream
+
+      - name: 3. 安裝 Python 環境與 Google Gemini SDK
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+      - name: Install dependencies
+        run: pip install google-genai
+
+      - name: 4. 執行 Agent 進行翻譯
+        # 將存放在 Settings > Secrets 裡面的 API Key 注入為環境變數
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          python repos/current/translate-agent.py
+
+      - name: 5. 驗證與提交 (Push)
+        run: |
+          cd repos/current
+          # 設定一個機器人身份
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          
+          git add README.md
+          
+          # 使用 git diff 檢查檔案到底有沒有改變
+          if git diff --staged --quiet; then
+            echo "沒有偵測到新的變更，不需要 Commit。"
+          else
+            git commit -m "chore: [Agent] auto-translate upstream README.md to zh-TW"
+            git push origin HEAD
+          fi
