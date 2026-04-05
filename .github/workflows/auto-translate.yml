@@ -2,8 +2,8 @@ name: Copilot CLI Agentic Translation Workflow
 
 on:
   schedule:
-    - cron: '0 0 * * *' # 每天凌晨自動執行
-  workflow_dispatch: # 允許在 GitHub 網頁上手動點擊執行
+    - cron: '0 0 * * *'  # 每天凌晨自動執行 (UTC)
+  workflow_dispatch:      # 允許在 GitHub 網頁上手動觸發
 
 permissions:
   contents: write
@@ -12,51 +12,113 @@ jobs:
   agentic-translate-job:
     runs-on: ubuntu-latest
     steps:
+      # ─────────────────────────────────────────────
+      # Step 1: 準備資料 - Clone 雙方 Repo
+      # ─────────────────────────────────────────────
       - name: 1. Clone 本地程式碼 (學習專案)
         run: |
           mkdir -p repos
-          git clone --depth 1 "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" repos/current
+          git clone --depth 1 \
+            "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" \
+            repos/current
 
       - name: 2. Clone 目標上游 (github/copilot-cli)
         run: |
           git clone --depth 1 "https://github.com/github/copilot-cli.git" repos/upstream
 
-      - name: 3. 準備最小翻譯工作區
-        run: |
-          mkdir -p repos/translate-work
-          cp repos/current/README.md repos/translate-work/README.md || touch repos/translate-work/README.md
-          cp repos/upstream/README.md repos/translate-work/upstream.README.md
+      # ─────────────────────────────────────────────
+      # Step 2: 執行 Python 增量識別腳本
+      #   決定哪些內容需要翻、哪些不用
+      # ─────────────────────────────────────────────
+      - name: 3. 執行增量識別腳本 (Python)
+        run: python3 repos/current/scripts/extract_new_changelog.py
 
-      - name: 4. Set up Node.js
+      - name: 4. 將識別結果匯出為 GitHub Actions 環境變數
+        run: cat repos/translate-work/flags.env >> "$GITHUB_ENV"
+
+      # ─────────────────────────────────────────────
+      # Step 3: 安裝 Copilot CLI Agent
+      # ─────────────────────────────────────────────
+      - name: 5. Set up Node.js 22
         uses: actions/setup-node@v4
         with:
           node-version: '22'
 
-      - name: 5. 安裝 GitHub Copilot CLI Agent
+      - name: 6. 安裝 GitHub Copilot CLI
         run: npm install -g @github/copilot
 
-      - name: 6. 執行 Copilot CLI Agent 進行自動翻譯
+      # ─────────────────────────────────────────────
+      # Step 4a: 翻譯 README.md (只在上游有更新時)
+      # ─────────────────────────────────────────────
+      - name: 7a. 翻譯 README.md
+        if: env.TRANSLATE_README == 'true'
         env:
-          # 取代舊的 OpenAI 或 Gemini Key，這裡必須是勾選了 "Copilot Requests" 權限的 GitHub PAT
           GH_TOKEN: ${{ secrets.COPILOT_PAT_SECRET }}
         run: |
           cd repos/translate-work
-          # 啟動無人值守 (--allow-all) 實驗模式 (--experimental) 進行翻譯
-          copilot --experimental --allow-all -p '你只能讀寫目前的 README.md，並且只能參考 upstream.README.md。請將 upstream.README.md 的內容全文精準翻譯為繁體中文(zh-TW)後覆寫 README.md。請務必保持 Markdown 結構、超連結與程式碼區塊不變。絕對不要搜尋或操作目錄下的其他檔案。'
+          echo ">>> 上游 README 有更新，開始翻譯..."
+          copilot \
+            --model gpt-5.4-mini \
+            --experimental \
+            --allow-all \
+            --no-ask-user \
+            -p '你只能讀寫 README.md，並且只能參考 upstream.README.md。請將 upstream.README.md 的完整內容精準翻譯為繁體中文(zh-TW)後覆寫 README.md。嚴格保持所有 Markdown 格式、超連結、程式碼區塊等不變。非必要不添加任何額外說明文字。禁止操作其他任何檔案。'
 
-      - name: 7. 拷貝結果並驗證與提交 (Push)
+      # ─────────────────────────────────────────────
+      # Step 4b: 翻譯 changelog 新版本區塊 (增量)
+      # ─────────────────────────────────────────────
+      - name: 7b. 翻譯 changelog 新版本區塊 (增量)
+        if: env.TRANSLATE_CHANGELOG == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.COPILOT_PAT_SECRET }}
         run: |
-          cp repos/translate-work/README.md repos/current/README.md
+          cd repos/translate-work
+          echo ">>> 發現 ${{ env.NEW_BLOCK_COUNT }} 個新版本區塊，開始增量翻譯..."
+          copilot \
+            --model gpt-5.4-mini \
+            --experimental \
+            --allow-all \
+            --no-ask-user \
+            -p '你只能讀寫 new_changelog_blocks.md 這一個檔案。請將此 Markdown 檔案中所有文字內容精準翻譯為繁體中文(zh-TW)，直接覆寫 new_changelog_blocks.md。嚴格保持所有 Markdown 格式（標題、列表、程式碼區塊、URL）原樣不動，只翻譯英文文字部分。禁止操作任何其他檔案。'
+
+      # ─────────────────────────────────────────────
+      # Step 5: 合併翻譯結果並 Commit
+      # ─────────────────────────────────────────────
+      - name: 8. 合併翻譯結果回目前 Repo
+        run: |
+          # README：如果有翻譯結果，複製回去
+          if [ "$TRANSLATE_README" = "true" ] && [ -f repos/translate-work/README.md ]; then
+            cp repos/translate-work/README.md repos/current/README.md
+            echo "README.md 已更新。"
+          fi
+
+          # CHANGELOG：如果有新版本翻譯，Prepend 到目前的 changelog 前方
+          if [ "$TRANSLATE_CHANGELOG" = "true" ] && [ -f repos/translate-work/new_changelog_blocks.md ]; then
+            # 新翻好的區塊 + 換行 + 舊的 changelog = 合併後的新 changelog
+            {
+              cat repos/translate-work/new_changelog_blocks.md
+              echo ""
+              echo "---"
+              echo ""
+              cat repos/current/changelog.md
+            } > /tmp/merged_changelog.md
+            mv /tmp/merged_changelog.md repos/current/changelog.md
+            echo "changelog.md 已更新（新增 $NEW_BLOCK_COUNT 個版本區塊）。"
+          fi
+
+      - name: 9. Commit 與 Push
+        run: |
           cd repos/current
-          
+
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          
-          git add README.md
-          
+
+          git add README.md changelog.md .upstream_readme_hash 2>/dev/null || true
+
           if git diff --staged --quiet; then
-            echo "沒有偵測到新的變更，不需要 Commit。"
+            echo "沒有偵測到任何變更，跳過 Commit。"
           else
-            git commit -m "chore: [Agent] update translation via GitHub Copilot CLI"
+            git commit -m "chore: [Agent] update zh-TW translations via GitHub Copilot CLI (gpt-5.4-mini)"
             git push origin HEAD
+            echo "Push 完成！"
           fi
