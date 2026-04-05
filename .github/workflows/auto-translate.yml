@@ -42,7 +42,7 @@ jobs:
         run: |
           cd repos/translate-work
           # 啟動無人值守 (--allow-all) 實驗模式 (--experimental) 進行翻譯
-          copilot --experimental --allow-all '你只能讀寫目前的 README.md，並且只能參考 upstream.README.md。請將 upstream.README.md 的內容全文精準翻譯為繁體中文(zh-TW)後覆寫 README.md。請務必保持 Markdown 結構、超連結與程式碼區塊不變。絕對不要搜尋或操作目錄下的其他檔案。'
+          copilot --experimental --allow-all -p '你只能讀寫目前的 README.md，並且只能參考 upstream.README.md。請將 upstream.README.md 的內容全文精準翻譯為繁體中文(zh-TW)後覆寫 README.md。請務必保持 Markdown 結構、超連結與程式碼區塊不變。絕對不要搜尋或操作目錄下的其他檔案。'
 
       - name: 7. 拷貝結果並驗證與提交 (Push)
         run: |
