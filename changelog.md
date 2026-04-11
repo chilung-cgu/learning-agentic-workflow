@@ -1,3 +1,26 @@
+## 1.0.24 - 2026-04-10
+
+- preToolUse hooks 現在會尊重 modifiedArgs/updatedInput 與 additionalContext 欄位
+- 自訂代理程式模型欄位現在接受來自 VS Code 的顯示名稱與廠商後綴（例如 "Claude Sonnet 4.5"、"GPT-5.4 (copilot)"）
+- 在 CLI 因 OOM 或 segfault 等崩潰後，終端機狀態（替代畫面、游標、原始模式）會正確還原
+- 當首次在 GitHub 儲存庫執行時出現工作階段同步提示，--remote 旗標會被正確套用
+- 重新設計結束畫面，加入 Copilot 吉祥物與更清爽的使用摘要版面
+
+## 1.0.23 - 2026-04-10
+
+- 新增 --mode、--autopilot 與 --plan 旗標，可直接以特定代理程式模式啟動 CLI
+- 當記憶體後端不可用時，代理程式不再會在第一輪卡住
+- Bazel/Buck 建置目標標籤（例如 //package:target）不再被誤判為檔案路徑
+- Ctrl+L 會清空終端機畫面，但不會清除對話工作階段
+- 斜線指令選擇器現在會顯示完整技能描述與改良過的捲軸
+- 在代理程式執行時，/diff、/agent、/feedback、/ide 與 /tuikit 仍可使用
+- 當推理 token 用量不為零時，會在每個模型的 token 明細中顯示
+- 遠端分頁現在可正確顯示 Copilot coding agent 任務，並支援透過 Tasks API 進行引導
+- 含有 BEL 字元的 shell 輸出不再造成終端機重複嗶聲
+- .vscode/mcp.json 的遷移提示現在包含一個可將設定遷移至 .mcp.json 的 jq 指令
+
+---
+
 ## 1.0.22 - 2026-04-09
 
 - MCP 工具中使用非標準 JSON schema 的內容現在會被清理，以相容所有模型供應商
