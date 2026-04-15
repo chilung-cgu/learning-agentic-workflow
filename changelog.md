@@ -1,3 +1,34 @@
+## 1.0.27 - 2026-04-15
+
+- 當 Copilot Pro 試用暫停時，顯示清楚的訊息，而不是泛用的政策錯誤
+- 狀態列在輸入時會顯示 @files 和 #issues 提示，且在斜線命令選擇器開啟時顯示 /help 提示
+- WSL 上的剪貼簿複製不再將不可見的 BOM 字元帶入貼上的文字中
+- 新增 /ask 命令，可在不影響對話歷史的情況下快速提問
+- 新增 `copilot plugin marketplace update` 命令以重新整理外掛程式目錄
+
+## 1.0.26 - 2026-04-14
+
+- Escape 鍵現在能可靠地關閉 ask_user 和 elicitation 提示，而不會卡住
+- `find -exec` 區塊中的引數不再錯誤地出現目錄存取提示
+- 當 context compaction 將工具呼叫切分到 checkpoint 邊界兩側時，Agent 工作階段不再以無法復原的錯誤失敗
+- 以單一區段組成、並以斜線開頭的 token（例如 /help、/start）在 bash 命令中不再被視為檔案路徑
+- Anthropic BYOM 在檢視圖片檔案時可正確包含影像資料
+- 權限提示通知 hook 只會在提示實際顯示給使用者時才觸發
+- ctrl+o 現在會展開所有時間軸項目，效果與 ctrl+e 相同
+- Remote 分頁可正確顯示 Copilot coding agent 任務，並支援 steering，而不需要 pull request
+- 在 --remote 旗標與 /remote 命令說明文字中，將 "steering" 重新命名為 "remote control"
+- 避免傳送重複的自訂指令檔（例如內容相同的 copilot-instructions.md 與 CLAUDE.md），以減少每回合浪費的 token
+- 外掛程式 hook 會收到 PLUGIN_ROOT、COPILOT_PLUGIN_ROOT 和 CLAUDE_PLUGIN_ROOT 環境變數，其值為外掛程式的安裝目錄
+- ACP 伺服器僅繫結到 localhost，以防止非預期的網路暴露
+- 從 marketplace 安裝名為 'git' 的外掛程式不再會因 URL 解析錯誤而失敗
+- Enterprise 登入接受沒有 URL scheme 的主機名稱（例如 'github.example.com'）
+- LSP 語言伺服器現在會在 Windows 上使用正確的 file URI 路徑來正確初始化
+- 檔案編輯操作中的相對路徑會以工作階段工作目錄為基準解析
+- sync 提示中的工作階段範圍選擇器現在更醒目，且可用左右方向鍵進行鍵盤操作
+- 具有特定 applyTo 模式的指令檔現在會彙整成表格，而不是將完整內容直接內嵌，從而減少 context window 使用量
+
+---
+
 ## 1.0.25 - 2026-04-13
 
 - 可直接在 CLI 中從註冊表安裝 MCP 伺服器，並提供引導式設定
