@@ -1,3 +1,20 @@
+## 1.0.36 - 2026-04-24
+
+- 子命令選擇器會在高亮項目旁顯示選取指示符（❯）
+- 偵測到多個 Copilot 授權時，會顯示更清楚且附帶直接連結的錯誤訊息
+- 修正了 preToolUse.matcher 被忽略的問題。升級後，具有 matcher 的 hooks 只會對完全符合正則表示式的工具名稱執行。
+- `/keep-alive` 無需實驗模式即可使用，以在 Copilot CLI 啟用時防止系統進入睡眠
+- /remote 指令會顯示目前狀態，並支援 /remote on 與 /remote off 來切換遠端控制
+- 已停用的技能不再出現在斜線指令清單中
+- 新增 'changes' 狀態列切換，顯示本次工作階段新增/移除的行數
+- 位於 .gitignored 目錄中的自訂指示檔（例如 .github/instructions/）現在可正確載入
+- 取消進行中的工作需要連按兩次 Esc，以避免誤觸中斷
+- 儲存除錯記錄或回饋套件時，不再覆寫既有的封存檔
+- 來自 ~/.claude/ 的自訂代理、技能與指令不再由 Copilot CLI 載入
+- Claude Opus 4.6 現在預設使用中等推理強度
+
+---
+
 ## 1.0.35 - 2026-04-23
 
 - Slash commands support tab-completion for arguments and subcommands
